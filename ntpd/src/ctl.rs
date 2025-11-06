@@ -4,6 +4,7 @@ use crate::{
     daemon::{Config, ObservableState, config::CliArg, tracing::LogLevel},
     force_sync,
 };
+
 use tokio::runtime::Builder;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -169,6 +170,35 @@ fn validate(config: Option<PathBuf>) -> std::io::Result<ExitCode> {
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn main() -> std::io::Result<ExitCode> {
+    #[cfg(target_os = "linux")]
+    {
+        use crate::security::seccomp_init;
+
+        // Allowed syscalls
+        let syscalls = vec![
+            "clock_adjtime",
+            "clock_nanosleep",
+            "clone3",
+            "dup",
+            "exit_group",
+            "fchownat",
+            "futex",
+            "getdents64",
+            "getsockname",
+            "getsockopt",
+            "madvise",
+            "newfstatat",
+            "open_by_handle_at",
+            "prctl",
+            "rseq",
+            "recvmsg",
+            "sendmmsg",
+            "time",
+            "uname",
+            "writev",
+        ];
+        seccomp_init(syscalls);
+    }
     let options = match NtpCtlOptions::try_parse_from(std::env::args()) {
         Ok(options) => options,
         Err(msg) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, msg)),
